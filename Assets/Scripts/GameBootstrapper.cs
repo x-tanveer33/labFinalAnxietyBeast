@@ -389,28 +389,40 @@ public class GameBootstrapper : MonoBehaviour
 
     private void SpawnCoinsLevel1()
     {
-        Vector3[] coinPositions = new Vector3[]
-        {
-            new Vector3(-5f, 0.5f, -5f),
-            new Vector3(-9f, 0.5f, -4f),
-            new Vector3(-13f, 0.5f, -8f)
-        };
-        CreateCoins(coinPositions);
+        CreateCoins(GetCoinPositionsNearBeast(3));
     }
 
     private void SpawnCoinsLevel2()
     {
-        // Spawning coins along the main player trail so they are in a good, easy place to collect
-        Vector3[] coinPositions = new Vector3[]
+        CreateCoins(GetCoinPositionsNearBeast(6));
+    }
+
+    private Vector3[] GetCoinPositionsNearBeast(int count)
+    {
+        BeastAI beast = FindAnyObjectByType<BeastAI>();
+        Vector3 center = beast != null
+            ? beast.transform.position
+            : new Vector3(-9.333f, 0.5f, -26.26f);
+
+        Vector3[] offsets = new Vector3[]
         {
-            new Vector3(-5f, 0.5f, -5f),   // Main trail 1
-            new Vector3(-9f, 0.5f, -4f),   // Main trail 2
-            new Vector3(-13f, 0.5f, -8f),  // Main trail 3
-            new Vector3(-15f, 0.5f, -15f), // Main trail extension
-            new Vector3(-2f, 0.5f, -8f),   // Side trail
-            new Vector3(-8f, 0.5f, 2f)     // Forward trail
+            Vector3.zero,
+            new Vector3(2f, 0f, 0f),
+            new Vector3(-2f, 0f, 0f),
+            new Vector3(0f, 0f, 2f),
+            new Vector3(0f, 0f, -2f),
+            new Vector3(1.5f, 0f, 1.5f),
         };
-        CreateCoins(coinPositions);
+
+        Vector3[] positions = new Vector3[count];
+        for (int i = 0; i < count; i++)
+        {
+            Vector3 offset = i < offsets.Length ? offsets[i] : Vector3.zero;
+            positions[i] = new Vector3(center.x + offset.x, 0.5f, center.z + offset.z);
+        }
+
+        Debug.Log("[GameBootstrapper] Spawning " + count + " coins near beast at " + center);
+        return positions;
     }
 
     private void CreateCoins(Vector3[] positions)

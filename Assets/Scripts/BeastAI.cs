@@ -1,8 +1,10 @@
+using System;
 using UnityEngine;
 using UnityEngine.AI;
 
 public class BeastAI : MonoBehaviour
 {
+    public enum BeastState { Patrol, Chase, Attack }
     [Header("Patrol Settings")]
     public Transform[] patrolPoints;
     public float patrolSpeed = 2f;
@@ -29,15 +31,51 @@ public class BeastAI : MonoBehaviour
 
     private NavMeshAgent agent;
     private Transform player;
-    private Animator animator;
     private int currentPatrolIndex = 0;
     private float waitTimer = 0f;
     private float lastAttackTime = 0f;
     private float footstepTimer = 0f;
     private bool hasDestination = false;
+    private bool isPatrolMoving = false;
 
-    private enum State { Patrol, Chase, Attack }
-    private State currentState = State.Patrol;
+    private BeastState currentState = BeastState.Patrol;
+
+    public BeastState CurrentState => currentState;
+    public event Action<BeastState> OnStateChanged;
+
+    public bool IsMoving
+    {
+        get
+        {
+            if (currentState == BeastState.Attack)
+                return false;
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+                return !agent.isStopped && agent.velocity.sqrMagnitude > 0.01f;
+
+            if (currentState == BeastState.Chase)
+                return true;
+
+            return isPatrolMoving;
+        }
+    }
+
+    public float CurrentMoveSpeed
+    {
+        get
+        {
+            if (currentState == BeastState.Attack)
+                return 0f;
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+                return agent.velocity.magnitude;
+
+            if (currentState == BeastState.Chase)
+                return chaseSpeed;
+
+            return isPatrolMoving ? patrolSpeed : 0f;
+        }
+    }
 
     void Start()
     {
@@ -62,21 +100,9 @@ public class BeastAI : MonoBehaviour
         }
 
         if (agent != null) agent.enabled = true;
-        
-        // Locate or wire up animator programmatically
-        animator = GetComponentInChildren<Animator>();
-        if (animator != null)
-        {
-            if (animator.runtimeAnimatorController == null || animator.runtimeAnimatorController.name == "Missing")
-            {
-                RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>("BeastAnimator");
-                if (controller != null)
-                {
-                    animator.runtimeAnimatorController = controller;
-                    Debug.Log("[BeastAI] Programmatically assigned BeastAnimator controller from Resources.");
-                }
-            }
-        }
+
+        if (GetComponent<BeastAnimatorFSM>() == null)
+            gameObject.AddComponent<BeastAnimatorFSM>();
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj == null)
@@ -152,52 +178,41 @@ public class BeastAI : MonoBehaviour
     {
         if (player == null) return;
 
-        // Verify Animator references and state
-        if (animator == null) animator = GetComponentInChildren<Animator>();
-
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
         switch (currentState)
         {
-            case State.Patrol:
+            case BeastState.Patrol:
                 Patrol();
                 if (distanceToPlayer <= detectionRadius)
-                {
-                    currentState = State.Chase;
-                }
+                    SetState(BeastState.Chase);
                 break;
 
-            case State.Chase:
+            case BeastState.Chase:
                 ChasePlayer();
                 if (distanceToPlayer <= attackRange)
-                {
-                    currentState = State.Attack;
-                }
+                    SetState(BeastState.Attack);
                 else if (distanceToPlayer > detectionRadius * 1.3f)
                 {
-                    currentState = State.Patrol;
+                    SetState(BeastState.Patrol);
                     hasDestination = false;
                 }
                 break;
 
-            case State.Attack:
+            case BeastState.Attack:
                 AttackPlayer();
                 if (distanceToPlayer > attackRange)
                 {
-                    currentState = State.Chase;
+                    SetState(BeastState.Chase);
                     bool useNavMesh = (agent != null && agent.enabled && agent.isOnNavMesh);
                     if (useNavMesh)
-                    {
                         agent.isStopped = false;
-                    }
-                    if (animator != null && animator.isActiveAndEnabled && animator.runtimeAnimatorController != null)
-                        animator.SetBool("isAttacking", false);
                 }
                 break;
         }
 
         // Footstep sounds (only when moving and not attacking)
-        if (footstepAudioSource != null && footstepClip != null && currentState != State.Attack)
+        if (footstepAudioSource != null && footstepClip != null && currentState != BeastState.Attack)
         {
             footstepTimer += Time.deltaTime;
             if (footstepTimer >= footstepInterval)
@@ -249,6 +264,7 @@ public class BeastAI : MonoBehaviour
     {
         if (patrolPoints.Length == 0) 
         {
+            isPatrolMoving = false;
             Debug.LogWarning("[BeastAI] No patrol points assigned!");
             return;
         }
@@ -260,6 +276,7 @@ public class BeastAI : MonoBehaviour
         {
             if (!agent.pathPending && agent.remainingDistance < 0.5f)
             {
+                isPatrolMoving = false;
                 waitTimer += Time.deltaTime;
                 if (waitTimer >= waitTimeAtPoint)
                 {
@@ -269,10 +286,14 @@ public class BeastAI : MonoBehaviour
                     waitTimer = 0f;
                 }
             }
-            else if (!hasDestination)
+            else
             {
-                agent.SetDestination(patrolPoints[currentPatrolIndex].position);
-                hasDestination = true;
+                isPatrolMoving = true;
+                if (!hasDestination)
+                {
+                    agent.SetDestination(patrolPoints[currentPatrolIndex].position);
+                    hasDestination = true;
+                }
             }
         }
         else
@@ -280,6 +301,7 @@ public class BeastAI : MonoBehaviour
             float distanceToTarget = Vector3.Distance(new Vector3(transform.position.x, targetPos.y, transform.position.z), targetPos);
             if (distanceToTarget < 0.8f)
             {
+                isPatrolMoving = false;
                 waitTimer += Time.deltaTime;
                 if (waitTimer >= waitTimeAtPoint)
                 {
@@ -289,6 +311,7 @@ public class BeastAI : MonoBehaviour
             }
             else
             {
+                isPatrolMoving = true;
                 MoveTowardsTarget(targetPos, patrolSpeed);
             }
         }
@@ -321,9 +344,6 @@ public class BeastAI : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
         }
 
-        if (animator != null && animator.isActiveAndEnabled && animator.runtimeAnimatorController != null)
-            animator.SetBool("isAttacking", true);
-
         if (Time.time - lastAttackTime >= attackCooldown)
         {
             lastAttackTime = Time.time;
@@ -336,6 +356,15 @@ public class BeastAI : MonoBehaviour
                 Debug.Log("[BeastAI] Attacked player for " + beastAttackDamage + " damage. Player health is now " + playerHealth.GetCurrentHealth());
             }
         }
+    }
+
+    private void SetState(BeastState newState)
+    {
+        if (currentState == newState)
+            return;
+
+        currentState = newState;
+        OnStateChanged?.Invoke(newState);
     }
 
     void OnDrawGizmosSelected()
