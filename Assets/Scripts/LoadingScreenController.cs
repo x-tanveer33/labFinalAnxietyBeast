@@ -18,6 +18,11 @@ public class LoadingManager : MonoBehaviour
 
     void Start()
     {
+        if (sceneToLoad == "Level1")
+        {
+            sceneToLoad = "level 1";
+        }
+
         // Ensure slider starts at 0
         if (loadingSlider != null)
         {

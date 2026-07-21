@@ -67,6 +67,6 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "labFinalAnxietyBeast.slnx",
+    "dotnet.defaultSolution": "axietybeastprojectgame.slnx",
     "dotnet.enableWorkspaceBasedDevelopment": false
 }

@@ -19,6 +19,11 @@ public class PlayerHealth : MonoBehaviour
     public float damageCooldown = 1f;
     private float lastDamageTime = 0f;
 
+    [Header("Passive Decay Settings")]
+    [Tooltip("How much health to lose per second passively.")]
+    public float healthDecayRate = 5f; 
+    private float logTimer = 0f;
+
     void Awake()
     {
         Instance = this;
@@ -26,15 +31,42 @@ public class PlayerHealth : MonoBehaviour
 
     void Start()
     {
+        if (maxHealth <= 0f) maxHealth = 100f;
+        if (healthDecayRate <= 0f) healthDecayRate = 5f; // Safety fallback for Unity serialization
         currentHealth = maxHealth;
         UpdateHealthUI();
     }
 
+    void Update()
+    {
+        // Passively decay health over time
+        if (currentHealth > 0f && healthDecayRate > 0f)
+        {
+            TakeDamage(healthDecayRate * Time.deltaTime, true);
+
+            logTimer += Time.deltaTime;
+            if (logTimer >= 1f)
+            {
+                logTimer = 0f;
+                Debug.Log("[PlayerHealth] Current Health: " + currentHealth + "/" + maxHealth + " | Slider bound: " + (healthSlider != null) + " | Slider value: " + (healthSlider != null ? healthSlider.value.ToString("F3") : "N/A"));
+            }
+        }
+    }
+
     public void TakeDamage(float damage)
     {
-        if (Time.time - lastDamageTime < damageCooldown) return;
+        TakeDamage(damage, false);
+    }
 
-        lastDamageTime = Time.time;
+    public void TakeDamage(float damage, bool ignoreCooldown)
+    {
+        if (!ignoreCooldown && (Time.time - lastDamageTime < damageCooldown)) return;
+
+        if (!ignoreCooldown)
+        {
+            lastDamageTime = Time.time;
+        }
+
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
 

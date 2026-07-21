@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 83e42a10730fffd4e8842b0c8d3a061a
+guid: adf6409fe8510f64e94640cc38935250
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -8,37 +8,37 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: skeletonZombie_Material
-    second: {fileID: 2100000, guid: 8461accd62d8fd3499c92e066057608f, type: 2}
+    second: {fileID: 2100000, guid: 51fb90070925deb47ac1902d377cfe48, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: skeletonZombie_Material1
-    second: {fileID: 2100000, guid: 4515119451bc0da4eaf3a3a5824e4cc9, type: 2}
+    second: {fileID: 2100000, guid: a3f82811c3f680c4691a8510195f0504, type: 2}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: skeletonZombie_body_diffuse
-    second: {fileID: 2800000, guid: f74bc411bb62b15499291759664e47a6, type: 3}
+    second: {fileID: 2800000, guid: d36a85dddc3e86f4da22aa84237560b1, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: skeletonZombie_diffuse
-    second: {fileID: 2800000, guid: d6b945ba1ab328c48b2012fc4be08d4b, type: 3}
+    second: {fileID: 2800000, guid: aa4765675e004964b84c26bba4317f28, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: skeletonZombie_glow
-    second: {fileID: 2800000, guid: 2f8d584fb84d7a54083dbab494d7f3ed, type: 3}
+    second: {fileID: 2800000, guid: 096f3f6ee93f083489449ae1c378eee6, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: skeletonZombie_normal
-    second: {fileID: 2800000, guid: 2a13a042c1aafb348bd86832de273f7b, type: 3}
+    second: {fileID: 2800000, guid: 7d1dfe8f69d6fb945adc5e641bd1012b, type: 3}
   - first:
       type: UnityEngine:Texture2D
       assembly: UnityEngine.CoreModule
       name: skeletonZombie_specular
-    second: {fileID: 2800000, guid: 35e11bc0e70c2ae40a074bd2bbe2860e, type: 3}
+    second: {fileID: 2800000, guid: e164a724fbb585a46abe8c4b2fc29017, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0
