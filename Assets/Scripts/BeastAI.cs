@@ -11,12 +11,14 @@ public class BeastAI : MonoBehaviour
     public float waitTimeAtPoint = 2f;
 
     [Header("Detection & Chase")]
-    public float detectionRadius = 15f;
+    public float detectionRadius = 8.5f;
+    public float loseChaseDistance = 10f;
     public float chaseSpeed = 5f;
-    public float attackRange = 2.5f;
+    public float attackRange = 2.2f;
 
     [Header("Attack")]
-    public float attackCooldown = 1f;
+    public float attackCooldown = 1.85f;
+    public float attackDamageDelay = 0.85f;
     public float beastAttackDamage = 25f;
 
     [Header("Audio")]
@@ -37,6 +39,7 @@ public class BeastAI : MonoBehaviour
     private float footstepTimer = 0f;
     private bool hasDestination = false;
     private bool isPatrolMoving = false;
+    private bool isAttackingInProgress = false;
 
     private BeastState currentState = BeastState.Patrol;
 
@@ -50,13 +53,19 @@ public class BeastAI : MonoBehaviour
             if (currentState == BeastState.Attack)
                 return false;
 
-            if (agent != null && agent.enabled && agent.isOnNavMesh)
-                return !agent.isStopped && agent.velocity.sqrMagnitude > 0.01f;
-
             if (currentState == BeastState.Chase)
                 return true;
 
-            return isPatrolMoving;
+            if (currentState == BeastState.Patrol)
+            {
+                if (agent != null && agent.enabled && agent.isOnNavMesh)
+                {
+                    return !agent.isStopped && agent.hasPath && agent.remainingDistance > 0.5f;
+                }
+                return isPatrolMoving;
+            }
+
+            return false;
         }
     }
 
@@ -178,6 +187,19 @@ public class BeastAI : MonoBehaviour
     {
         if (player == null) return;
 
+        // Ground raycast snapping to prevent the Beast from floating in the air
+        RaycastHit groundHit;
+        Vector3 checkOrigin = new Vector3(transform.position.x, transform.position.y + 5f, transform.position.z);
+        if (Physics.Raycast(checkOrigin, Vector3.down, out groundHit, 15f))
+        {
+            if (agent == null || !agent.enabled || !agent.isOnNavMesh)
+            {
+                Vector3 pos = transform.position;
+                pos.y = groundHit.point.y;
+                transform.position = pos;
+            }
+        }
+
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
         switch (currentState)
@@ -192,10 +214,15 @@ public class BeastAI : MonoBehaviour
                 ChasePlayer();
                 if (distanceToPlayer <= attackRange)
                     SetState(BeastState.Attack);
-                else if (distanceToPlayer > detectionRadius * 1.3f)
+                else if (distanceToPlayer > loseChaseDistance)
                 {
                     SetState(BeastState.Patrol);
                     hasDestination = false;
+                    if (agent != null && agent.enabled && agent.isOnNavMesh)
+                    {
+                        agent.ResetPath();
+                    }
+                    Debug.Log("[BeastAI] Distance created (" + distanceToPlayer.ToString("F1") + "m > " + loseChaseDistance + "m). Stopping chase.");
                 }
                 break;
 
@@ -344,18 +371,42 @@ public class BeastAI : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
         }
 
-        if (Time.time - lastAttackTime >= attackCooldown)
+        if (!isAttackingInProgress && Time.time - lastAttackTime >= attackCooldown)
         {
-            lastAttackTime = Time.time;
-            Debug.Log("[BeastAI] Attacks player!");
+            StartCoroutine(PerformAttackCycle());
+        }
+    }
 
-            PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
-            if (playerHealth != null)
+    private System.Collections.IEnumerator PerformAttackCycle()
+    {
+        isAttackingInProgress = true;
+        lastAttackTime = Time.time;
+
+        Debug.Log("[BeastAI] Starting attack animation strike...");
+
+        // Wait until the attack animation reaches its strike impact / end
+        yield return new WaitForSeconds(attackDamageDelay);
+
+        // Apply damage ONCE when the strike lands
+        if (player != null && currentState == BeastState.Attack)
+        {
+            float dist = Vector3.Distance(transform.position, player.position);
+            if (dist <= attackRange * 1.5f)
             {
-                playerHealth.TakeDamage(beastAttackDamage);
-                Debug.Log("[BeastAI] Attacked player for " + beastAttackDamage + " damage. Player health is now " + playerHealth.GetCurrentHealth());
+                PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+                if (playerHealth != null)
+                {
+                    playerHealth.TakeDamage(beastAttackDamage);
+                    Debug.Log("[BeastAI] Attack strike landed! Dealt " + beastAttackDamage + " damage to player.");
+                }
             }
         }
+
+        // Wait for the remainder of the attack animation and cooldown
+        float remainingCooldown = Mathf.Max(0.1f, attackCooldown - attackDamageDelay);
+        yield return new WaitForSeconds(remainingCooldown);
+
+        isAttackingInProgress = false;
     }
 
     private void SetState(BeastState newState)

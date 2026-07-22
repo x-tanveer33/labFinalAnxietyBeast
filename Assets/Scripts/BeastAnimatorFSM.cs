@@ -33,14 +33,17 @@ public class BeastAnimatorFSM : MonoBehaviour
     private void Awake()
     {
         beastAI = GetComponent<BeastAI>();
-        animator = GetComponentInChildren<Animator>();
+        animator = GetComponentInChildren<Animator>(true);
     }
 
     private void Start()
     {
         EnsureAnimatorController();
-        beastAI.OnStateChanged += HandleFsmStateChanged;
-        SyncAnimationToFsm(force: true);
+        if (beastAI != null)
+        {
+            beastAI.OnStateChanged += HandleFsmStateChanged;
+            SyncAnimationToFsm(force: true);
+        }
     }
 
     private void OnDestroy()
@@ -51,11 +54,11 @@ public class BeastAnimatorFSM : MonoBehaviour
 
     private void Update()
     {
-        if (animator == null || !animator.isActiveAndEnabled || beastAI == null)
+        if (animator == null || !animator.isActiveAndEnabled || !animator.isInitialized || animator.runtimeAnimatorController == null || beastAI == null)
             return;
 
         float speed = beastAI.CurrentMoveSpeed;
-        bool isMoving = speed > idleSpeedThreshold;
+        bool isMoving = beastAI.IsMoving;
 
         animator.SetFloat(SpeedHash, speed);
         animator.SetBool(IsMovingHash, isMoving);
@@ -74,7 +77,7 @@ public class BeastAnimatorFSM : MonoBehaviour
 
     private void SyncAnimationToFsm(bool force)
     {
-        if (animator == null || beastAI == null)
+        if (animator == null || !animator.isActiveAndEnabled || !animator.isInitialized || animator.runtimeAnimatorController == null || beastAI == null)
             return;
 
         BeastAI.BeastState state = beastAI.CurrentState;
@@ -86,7 +89,7 @@ public class BeastAnimatorFSM : MonoBehaviour
         switch (state)
         {
             case BeastAI.BeastState.Patrol:
-                SyncPatrolLocomotion(beastAI.CurrentMoveSpeed > idleSpeedThreshold);
+                SyncPatrolLocomotion(beastAI.IsMoving);
                 break;
             case BeastAI.BeastState.Chase:
                 CrossFadeTo(chaseStateName, walkStateName, chaseAnimSpeed);
@@ -99,7 +102,7 @@ public class BeastAnimatorFSM : MonoBehaviour
 
     private void SyncPatrolLocomotion(bool isMoving)
     {
-        if (beastAI.CurrentState != BeastAI.BeastState.Patrol)
+        if (beastAI == null || beastAI.CurrentState != BeastAI.BeastState.Patrol)
             return;
 
         if (isMoving)
@@ -110,11 +113,21 @@ public class BeastAnimatorFSM : MonoBehaviour
 
     private void CrossFadeTo(string primaryState, string fallbackState, float playbackSpeed)
     {
+        if (animator == null || !animator.isActiveAndEnabled || !animator.isInitialized || animator.runtimeAnimatorController == null)
+            return;
+
         string targetState = ResolveStateName(primaryState, fallbackState);
         if (string.IsNullOrEmpty(targetState))
             return;
 
         animator.speed = playbackSpeed;
+
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
+        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
+
+        if (current.IsName(targetState) || next.IsName(targetState))
+            return;
+
         animator.CrossFade(targetState, crossFadeDuration, 0);
     }
 
@@ -129,7 +142,7 @@ public class BeastAnimatorFSM : MonoBehaviour
 
     private bool HasState(string stateName)
     {
-        if (animator == null || string.IsNullOrEmpty(stateName))
+        if (animator == null || !animator.isActiveAndEnabled || !animator.isInitialized || animator.runtimeAnimatorController == null || string.IsNullOrEmpty(stateName))
             return false;
 
         int hash = Animator.StringToHash(stateName);
@@ -139,26 +152,36 @@ public class BeastAnimatorFSM : MonoBehaviour
     private void EnsureAnimatorController()
     {
         if (animator == null)
+            animator = GetComponentInChildren<Animator>(true);
+
+        if (animator == null)
         {
-            Debug.LogWarning("[BeastAnimatorFSM] No Animator found on beast or its children.");
-            return;
+            animator = gameObject.AddComponent<Animator>();
+            Debug.Log("[BeastAnimatorFSM] Created Animator component on Beast.");
         }
 
-        if (animator.runtimeAnimatorController != null && animator.runtimeAnimatorController.name != "Missing")
-            return;
+        if (!animator.enabled)
+            animator.enabled = true;
 
-        RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>("BeastAnimator");
-        if (controller == null)
-            controller = Resources.Load<RuntimeAnimatorController>("Beastanimator");
+        animator.applyRootMotion = false;
 
-        if (controller != null)
+        if (animator.runtimeAnimatorController == null || animator.runtimeAnimatorController.name == "Missing")
         {
-            animator.runtimeAnimatorController = controller;
-            Debug.Log("[BeastAnimatorFSM] Assigned beast animator controller from Resources.");
-        }
-        else
-        {
-            Debug.LogWarning("[BeastAnimatorFSM] No beast animator controller found in Resources.");
+            RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>("BeastAnimator");
+            if (controller == null)
+                controller = Resources.Load<RuntimeAnimatorController>("Beastanimator");
+
+            if (controller != null)
+            {
+                animator.runtimeAnimatorController = controller;
+                animator.Rebind();
+                animator.Update(0f);
+                Debug.Log("[BeastAnimatorFSM] Assigned beast animator controller from Resources and rebound animator.");
+            }
+            else
+            {
+                Debug.LogWarning("[BeastAnimatorFSM] No beast animator controller found in Resources.");
+            }
         }
     }
 }

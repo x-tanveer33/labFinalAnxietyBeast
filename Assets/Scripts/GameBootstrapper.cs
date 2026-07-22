@@ -66,6 +66,8 @@ public class GameBootstrapper : MonoBehaviour
     {
         Debug.Log("[GameBootstrapper] Setting up Level 1...");
         Time.timeScale = 1f;
+        EnsureAnxietyManagerExists();
+        EnsureLevel1IntroExists();
 
         // Find Player
         GameObject player = GameObject.Find("ThirdPersonController");
@@ -96,6 +98,8 @@ public class GameBootstrapper : MonoBehaviour
             }
             ph.healthDecayRate = 2f; // Level 1 decay rate
             ph.Heal(100f);
+
+            CalibrateCharacterBounds(player, isBeast: false);
         }
 
         // Find Canvas
@@ -169,6 +173,7 @@ public class GameBootstrapper : MonoBehaviour
     {
         Debug.Log("[GameBootstrapper] Setting up Level 2 (Terrain Cloned Scene)...");
         Time.timeScale = 1f;
+        EnsureAnxietyManagerExists();
 
         // Find Player
         GameObject player = GameObject.Find("ThirdPersonController");
@@ -200,7 +205,7 @@ public class GameBootstrapper : MonoBehaviour
             PlayerHealth ph = player.GetComponent<PlayerHealth>();
             if (ph != null)
             {
-                ph.healthDecayRate = 3.5f; // Slightly faster health decay, but easy and balanced!
+                ph.healthDecayRate = 2.2f; // Reduced time decrease rate for relaxed gameplay!
                 ph.Heal(100f); // Heal player back to full at level start
             }
         }
@@ -389,39 +394,42 @@ public class GameBootstrapper : MonoBehaviour
 
     private void SpawnCoinsLevel1()
     {
-        CreateCoins(GetCoinPositionsNearBeast(3));
+        CreateCoins(GetHouseCoinPositions());
     }
 
     private void SpawnCoinsLevel2()
     {
-        CreateCoins(GetCoinPositionsNearBeast(6));
+        CreateCoins(GetHouseCoinPositions());
     }
 
-    private Vector3[] GetCoinPositionsNearBeast(int count)
+    private Vector3[] GetHouseCoinPositions()
     {
-        BeastAI beast = FindAnyObjectByType<BeastAI>();
-        Vector3 center = beast != null
-            ? beast.transform.position
-            : new Vector3(-9.333f, 0.5f, -26.26f);
-
-        Vector3[] offsets = new Vector3[]
+        // House locations: Lounge, Washroom, Bedroom, and Roof
+        Vector3[] houseSpots = new Vector3[]
         {
-            Vector3.zero,
-            new Vector3(2f, 0f, 0f),
-            new Vector3(-2f, 0f, 0f),
-            new Vector3(0f, 0f, 2f),
-            new Vector3(0f, 0f, -2f),
-            new Vector3(1.5f, 0f, 1.5f),
+            new Vector3(0f, 0.5f, -2.5f),    // Lounge Coin
+            new Vector3(4.5f, 0.5f, 8.2f),   // Washroom Coin
+            new Vector3(-12.5f, 0.5f, 6.8f), // Bedroom Coin
+            new Vector3(-4.2f, 5.8f, 3.5f)   // Roof Coin (Elevated roof height!)
         };
 
-        Vector3[] positions = new Vector3[count];
-        for (int i = 0; i < count; i++)
+        Vector3[] positions = new Vector3[houseSpots.Length];
+        for (int i = 0; i < houseSpots.Length; i++)
         {
-            Vector3 offset = i < offsets.Length ? offsets[i] : Vector3.zero;
-            positions[i] = new Vector3(center.x + offset.x, 0.5f, center.z + offset.z);
+            Vector3 spot = houseSpots[i];
+            // Snap ground-level room coins to floor height
+            if (i < 3)
+            {
+                RaycastHit hit;
+                if (Physics.Raycast(new Vector3(spot.x, spot.y + 10f, spot.z), Vector3.down, out hit, 20f))
+                {
+                    spot.y = hit.point.y + 0.5f;
+                }
+            }
+            positions[i] = spot;
         }
 
-        Debug.Log("[GameBootstrapper] Spawning " + count + " coins near beast at " + center);
+        Debug.Log("[GameBootstrapper] Placed 4 coins around the house: Lounge, Washroom, Bedroom, and Roof.");
         return positions;
     }
 
@@ -493,5 +501,77 @@ public class GameBootstrapper : MonoBehaviour
             coin.AddComponent<CoinPickup>();
             Debug.Log("[GameBootstrapper] Spawned coin at " + pos);
         }
+    }
+
+    private void EnsureAnxietyManagerExists()
+    {
+        if (AnxietyManager.Instance == null)
+        {
+            GameObject amGO = new GameObject("AnxietyManager");
+            amGO.AddComponent<AnxietyManager>();
+        }
+        EnsureMiniMapTrackerExists();
+    }
+
+    private void EnsureMiniMapTrackerExists()
+    {
+        if (MiniMapTracker.Instance == null)
+        {
+            GameObject mmGO = new GameObject("MiniMapTracker");
+            mmGO.AddComponent<MiniMapTracker>();
+        }
+        else
+        {
+            MiniMapTracker.Instance.RefreshCoinMarkers();
+        }
+    }
+
+    private void CalibrateCharacterBounds(GameObject character, bool isBeast)
+    {
+        if (character == null) return;
+
+        CharacterController cc = character.GetComponent<CharacterController>();
+        if (cc != null)
+        {
+            if (isBeast)
+            {
+                cc.height = 2.2f;
+                cc.radius = 0.5f;
+                cc.center = new Vector3(0f, 1.1f, 0f);
+            }
+            else
+            {
+                cc.height = 1.8f;
+                cc.radius = 0.35f;
+                cc.center = new Vector3(0f, 0.9f, 0f);
+            }
+        }
+
+        Animator anim = character.GetComponentInChildren<Animator>(true);
+        if (anim != null)
+        {
+            if (!anim.enabled) anim.enabled = true;
+            if (anim.runtimeAnimatorController == null || anim.runtimeAnimatorController.name == "Missing")
+            {
+                RuntimeAnimatorController ctrl = Resources.Load<RuntimeAnimatorController>(isBeast ? "BeastAnimator" : "PlayerAnimator");
+                if (ctrl != null)
+                {
+                    anim.runtimeAnimatorController = ctrl;
+                    anim.Rebind();
+                    anim.Update(0f);
+                    Debug.Log("[GameBootstrapper] Assigned " + (isBeast ? "BeastAnimator" : "PlayerAnimator") + " controller to " + character.name);
+                }
+            }
+        }
+    }
+
+    private void EnsureLevel1IntroExists()
+    {
+        if (Level1IntroSequence.Instance == null)
+        {
+            GameObject introGO = new GameObject("Level1IntroSequence");
+            introGO.AddComponent<Level1IntroSequence>();
+        }
+        Level1IntroSequence.Instance.StartIntroSequence();
     }
 }

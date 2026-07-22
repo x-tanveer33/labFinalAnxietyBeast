@@ -24,12 +24,17 @@ public class CoinPickup : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (collected) return;
-        Debug.Log("[CoinPickup] OnTriggerEnter triggered by GameObject: '" + other.name + "' with Tag: '" + other.tag + "'");
         
         bool isPl = IsPlayer(other);
-        Debug.Log("[CoinPickup] IsPlayer check evaluated to: " + isPl);
-
-        if (isPl) Collect();
+        if (isPl)
+        {
+            if (BoxBreathingUI.Instance == null)
+            {
+                GameObject bbGO = new GameObject("BoxBreathingUI");
+                bbGO.AddComponent<BoxBreathingUI>();
+            }
+            BoxBreathingUI.Instance.StartExercise(this);
+        }
     }
 
     private bool IsPlayer(Collider other)
@@ -56,10 +61,16 @@ public class CoinPickup : MonoBehaviour
         return false;
     }
 
-    private void Collect()
+    public void CompleteCollection()
     {
+        if (collected) return;
         collected = true;
-        Debug.Log("[CoinPickup] '" + gameObject.name + "' collected!");
+        Debug.Log("[CoinPickup] '" + gameObject.name + "' objective completed after Box Breathing!");
+
+        if (MiniMapTracker.Instance != null)
+        {
+            MiniMapTracker.Instance.RefreshCoinMarkers();
+        }
 
         // Restore health
         PlayerHealth ph = PlayerHealth.Instance;

@@ -34,6 +34,8 @@ public class ThirdPersonController : MonoBehaviour
     bool isSprinting = false;
     bool isCrouching = false;
 
+    public bool IsCrouching => isCrouching;
+
     // Inputs
     float inputHorizontal;
     float inputVertical;
@@ -48,11 +50,22 @@ public class ThirdPersonController : MonoBehaviour
     void Start()
     {
         cc = GetComponent<CharacterController>();
-        animator = GetComponent<Animator>();
+        animator = GetComponentInChildren<Animator>(true);
 
-        // Message informing the user that they forgot to add an animator
+        if (animator != null && (animator.runtimeAnimatorController == null || animator.runtimeAnimatorController.name == "Missing"))
+        {
+            RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>("PlayerAnimator");
+            if (controller != null)
+            {
+                animator.runtimeAnimatorController = controller;
+                animator.Rebind();
+                animator.Update(0f);
+                Debug.Log("[ThirdPersonController] Assigned PlayerAnimator controller from Resources to " + animator.gameObject.name);
+            }
+        }
+
         if (animator == null)
-            Debug.LogWarning("Hey buddy, you don't have the Animator component in your player. Without it, the animations won't work.");
+            Debug.LogWarning("[ThirdPersonController] No Animator component found on player or its children.");
     }
 
 
