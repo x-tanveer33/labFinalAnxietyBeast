@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -12,17 +13,15 @@ public class PlayerHealth : MonoBehaviour
     [Header("UI")]
     public Slider healthSlider;
     public Image healthFillImage;
-    public Text healthText; // Regular UI Text
+    public TextMeshProUGUI healthText;
 
     [Header("Damage Settings")]
     public float beastAttackDamage = 25f;
     public float damageCooldown = 1f;
-    private float lastDamageTime = 0f;
+    private float lastDamageTime;
 
-    [Header("Passive Decay Settings")]
-    [Tooltip("How much health to lose per second passively.")]
-    public float healthDecayRate = 5f; 
-    private float logTimer = 0f;
+    [Header("Passive Decay")]
+    public float healthDecayRate = 5f;
 
     void Awake()
     {
@@ -31,25 +30,15 @@ public class PlayerHealth : MonoBehaviour
 
     void Start()
     {
-        if (maxHealth <= 0f) maxHealth = 100f;
-        if (healthDecayRate <= 0f) healthDecayRate = 5f; // Safety fallback for Unity serialization
         currentHealth = maxHealth;
         UpdateHealthUI();
     }
 
     void Update()
     {
-        // Passively decay health over time
-        if (currentHealth > 0f && healthDecayRate > 0f)
+        if (currentHealth > 0f)
         {
             TakeDamage(healthDecayRate * Time.deltaTime, true);
-
-            logTimer += Time.deltaTime;
-            if (logTimer >= 1f)
-            {
-                logTimer = 0f;
-                Debug.Log("[PlayerHealth] Current Health: " + currentHealth + "/" + maxHealth + " | Slider bound: " + (healthSlider != null) + " | Slider value: " + (healthSlider != null ? healthSlider.value.ToString("F3") : "N/A"));
-            }
         }
     }
 
@@ -60,59 +49,59 @@ public class PlayerHealth : MonoBehaviour
 
     public void TakeDamage(float damage, bool ignoreCooldown)
     {
-        if (!ignoreCooldown && (Time.time - lastDamageTime < damageCooldown)) return;
+        if (!ignoreCooldown && Time.time - lastDamageTime < damageCooldown)
+            return;
 
         if (!ignoreCooldown)
-        {
             lastDamageTime = Time.time;
-        }
 
-        currentHealth -= damage;
-        currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
+        currentHealth = Mathf.Clamp(currentHealth - damage, 0, maxHealth);
 
         UpdateHealthUI();
 
-        if (currentHealth <= 0f)
-        {
+        if (currentHealth <= 0)
             Die();
-        }
     }
 
     void UpdateHealthUI()
     {
-        float healthPercent = currentHealth / maxHealth;
+        float percent = currentHealth / maxHealth;
 
         if (healthSlider != null)
-        {
-            healthSlider.value = healthPercent;
-        }
+            healthSlider.value = percent;
 
         if (healthFillImage != null)
         {
-            if (healthPercent > 0.5f)
+            if (percent > 0.5f)
                 healthFillImage.color = Color.green;
-            else if (healthPercent > 0.25f)
+            else if (percent > 0.25f)
                 healthFillImage.color = Color.yellow;
             else
                 healthFillImage.color = Color.red;
         }
 
         if (healthText != null)
-        {
             healthText.text = Mathf.RoundToInt(currentHealth).ToString();
-        }
     }
 
     void Die()
     {
+        // Hide health UI
+        if (healthSlider != null)
+            healthSlider.gameObject.SetActive(false);
+
+        if (healthText != null)
+            healthText.gameObject.SetActive(false);
+
         Debug.Log("Player Died!");
-        GameOverManager.Instance?.ShowGameOver();
+
+        if (GameOverManager.Instance != null)
+            GameOverManager.Instance.ShowGameOver();
     }
 
     public void Heal(float amount)
     {
-        currentHealth += amount;
-        currentHealth = Mathf.Clamp(currentHealth, 0f, maxHealth);
+        currentHealth = Mathf.Clamp(currentHealth + amount, 0, maxHealth);
         UpdateHealthUI();
     }
 

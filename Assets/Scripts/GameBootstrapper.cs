@@ -367,11 +367,11 @@ public class GameBootstrapper : MonoBehaviour
             }
 
             GameObject healthTextGO = GameObject.Find("HealthText");
-            if (healthTextGO != null)
-            {
-                healthTextGO.SetActive(true);
-                ph.healthText = healthTextGO.GetComponent<Text>();
-            }
+if (healthTextGO != null)
+{
+    healthTextGO.SetActive(true);
+    ph.healthText = healthTextGO.GetComponent<TMPro.TextMeshProUGUI>();
+}
 
             ph.Heal(0f); // Force update UI representation
         }
