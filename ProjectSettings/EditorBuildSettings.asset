@@ -11,21 +11,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scene/LoadingScreen.unity
     guid: 1e84b2fca547257a4a3a6062189397c6
-  - enabled: 0
-    path: Assets/Scene/Scenes/Sample space.unity
-    guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 0
-    path: Assets/Scene/Level1.unity
-    guid: c4d2ff3d107ee1de8adadd301ecc6be7
-  - enabled: 0
-    path: Assets/Scene/extra.unity
-    guid: 7face924a80aaa32ebe85b46827a9dc0
   - enabled: 1
     path: Assets/Scene/level 1.unity
     guid: 291c1f116413b5e49b525eb08670031c
   - enabled: 1
     path: Assets/Scene/Level 2.unity
-    guid: c206d02e77fbc3148a269062ea0e8069
+    guid: 378551c9dbb787b4f9dd2e04ec1454e5
+  - enabled: 1
+    path: Assets/Scene/levlell.unity
+    guid: 652c518879aa7e3c2a713fd4c6930cda
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
